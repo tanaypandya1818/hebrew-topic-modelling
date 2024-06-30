@@ -1,0 +1,70 @@
+#!/usr/bin/env python
+# encoding: utf-8
+from sre_constants import GROUPREF
+from hebrew_tokenizer.groups import Groups
+
+
+# patterns
+_heb_with_accents = r"[\u05D0-\u05EA|\u0591-\u05BD|\u05BF-\u05C4]"
+_heb = _heb_with_accents + "{1,}[']?[\"]*" + _heb_with_accents + "{1,}|" + _heb_with_accents
+_eng = r"[a-zA-ZÀ-ÿ]{1,}[\']?[\"]*[a-zA-Z0-9À-ÿ]{1,}|[a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ0-9]*"
+_eng_abbrev = r"[a-zA-Z]{1}\.[a-zA-Z]{1}(\.[a-zA-Z]){0,1}"
+_hour = r"[0-2]?[0-9]:[0-5][0-9]"
+_date1 = r"[0-9]{1,3}-[0-9]{1,3}-([1-2][0-9])?[0-9][0-9]"
+_date2 = r"([0-9]{1,3}-)?[0-9]{1,3}[\./][0-9]{1,3}[\./]([1-2][0-9])?[0-9][0-9]"
+_num = r"[+-]?([0-9]+[0-9/-]*[\.]?[0-9]+|[0-9]+)%{0,1}"
+_url = r"[a-z]+://\S+"
+_email = r".+@.+\..+"
+_punc = r"[,;:\-&!\?\.\]/)'`\"\*\+=_~}\[('`\"{/\\\<\>#%־ ֿֿ]"
+_bad_punc = r"[\'\"]"
+_bom = r"\xef\xbb\xbf|\ufeff|\u200e"
+_other = r"\xa0|\xe2?\x80\xa2?[[^׳-׳×a-zA-Z0-9!\?\.,:;\-()\[\]{}]+"
+_alphanumeric_non_english_hex= r"[\u0080-\u00AD|\u00B5-\u00B8|\u00BD-\u00BE|\u00C6-\u00C7|\u00D0-\u00D8|\u00DD-\u00DE|\u00E0-\u00EE|\u00F1-\u00FC|\u00C0-\u04FF]"
+_alphanumeric_non_english = _alphanumeric_non_english_hex+"{1,}[\']?[\"]*"+_alphanumeric_non_english_hex+"[0-9]*|"+_alphanumeric_non_english_hex+r"[0-9]"+_alphanumeric_non_english_hex+r"{1,}[0-9]*"
+
+_whitespace = r"\s+"
+_linebreaks = (
+    r"{3,}|".join(
+        [
+            "\\" + x
+            for x in ["*", "_", ".", "\\", "!", "+", ">", "<", "#", "^", "~", "=", "-"]
+        ]
+    )
+    + "\n"
+)
+_repeated = r"\S*(\S)\1{3,}\S*"
+_repeated_for_python_above_3_7 = r"\S*(\S)\4{3,}\S*"
+
+
+def get_lexicon(python_version_less_than_3=False, python_version_more_than_3_7=False):
+    # the expected (pattern, group mapping) format for the tokenizer
+    global _repeated
+
+    if python_version_more_than_3_7:
+        _repeated = _repeated_for_python_above_3_7
+
+    lexicon = [
+        (_whitespace, Groups.WHITESPACE),
+        (_linebreaks, Groups.LINEBREAK),
+        (_repeated, Groups.REPEATED),
+        (_bom, Groups.BOM),
+        (_date1, Groups.DATE_1),
+        (_date2, Groups.DATE_2),
+        (_hour, Groups.HOUR),
+        (_num, Groups.NUMBER),
+        (_url, Groups.URL),
+        (_eng_abbrev, Groups.ENGLISH_1),
+        (_punc, Groups.PUNCTUATION),
+        (_eng, Groups.ENGLISH_2),
+    ]
+
+    if python_version_less_than_3:
+        lexicon += [(_heb.decode("utf-8"), Groups.HEBREW_1)]
+
+    lexicon += [(_heb, Groups.HEBREW_2), (_other, Groups.OTHER)]
+    lexicon += [(_alphanumeric_non_english, Groups.ALPHA_NON_ENG)]
+
+    if python_version_more_than_3_7:
+        lexicon = [(b, a) for a, b in lexicon]
+
+    return lexicon
