@@ -1,0 +1,6 @@
+hebrew-tokenizer
+gensim
+nltk
+deep-translator
+scikit-learn
+numpy
